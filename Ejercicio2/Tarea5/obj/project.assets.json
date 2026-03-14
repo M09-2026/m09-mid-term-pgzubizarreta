@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\paulg\\OneDrive\\Desktop\\M09-MIDTERM\\m09-mid-term-pgzubizarreta\\Ejercicio2\\Tarea5\\Tarea5.csproj",
+      "projectUniqueName": "C:\\Users\\paulg\\Documents\\GitHub\\m09-mid-term-pgzubizarreta\\Ejercicio2\\Tarea5\\Tarea5.csproj",
       "projectName": "Tarea5",
-      "projectPath": "C:\\Users\\paulg\\OneDrive\\Desktop\\M09-MIDTERM\\m09-mid-term-pgzubizarreta\\Ejercicio2\\Tarea5\\Tarea5.csproj",
+      "projectPath": "C:\\Users\\paulg\\Documents\\GitHub\\m09-mid-term-pgzubizarreta\\Ejercicio2\\Tarea5\\Tarea5.csproj",
       "packagesPath": "C:\\Users\\paulg\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\paulg\\OneDrive\\Desktop\\M09-MIDTERM\\m09-mid-term-pgzubizarreta\\Ejercicio2\\Tarea5\\obj\\",
+      "outputPath": "C:\\Users\\paulg\\Documents\\GitHub\\m09-mid-term-pgzubizarreta\\Ejercicio2\\Tarea5\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\paulg\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -44,7 +44,7 @@
         "auditLevel": "low",
         "auditMode": "all"
       },
-      "SdkAnalysisLevel": "10.0.100"
+      "SdkAnalysisLevel": "10.0.200"
     },
     "frameworks": {
       "net10.0": {
@@ -65,7 +65,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.103/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.CSharp": "(,4.7.32767]",
           "Microsoft.VisualBasic": "(,10.4.32767]",
