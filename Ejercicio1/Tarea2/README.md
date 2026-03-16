@@ -44,4 +44,4 @@ public class Componente
     public int Estado { get; set; }
     public int Prioridad { get; set; }
     public int OrdenLlegada { get; set; }
-}
+} 

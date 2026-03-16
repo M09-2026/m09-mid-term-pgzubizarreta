@@ -1,0 +1,15 @@
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\bin\Debug\net10.0\Tarea3.exe
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\bin\Debug\net10.0\Tarea3.deps.json
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\bin\Debug\net10.0\Tarea3.runtimeconfig.json
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\bin\Debug\net10.0\Tarea3.dll
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\bin\Debug\net10.0\Tarea3.pdb
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\obj\Debug\net10.0\Tarea3.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\obj\Debug\net10.0\Tarea3.AssemblyInfoInputs.cache
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\obj\Debug\net10.0\Tarea3.AssemblyInfo.cs
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\obj\Debug\net10.0\Tarea3.csproj.CoreCompileInputs.cache
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\obj\Debug\net10.0\Tarea3.sourcelink.json
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\obj\Debug\net10.0\Tarea3.dll
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\obj\Debug\net10.0\refint\Tarea3.dll
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\obj\Debug\net10.0\Tarea3.pdb
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\obj\Debug\net10.0\Tarea3.genruntimeconfig.cache
+C:\Users\paulg\Documents\GitHub\m09-mid-term-pgzubizarreta\Ejercicio2\Tarea3\obj\Debug\net10.0\ref\Tarea3.dll

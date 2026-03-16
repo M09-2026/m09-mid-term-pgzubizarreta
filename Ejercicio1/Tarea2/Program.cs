@@ -2,174 +2,144 @@
 using System.Collections.Generic;
 using System.Threading;
 
-namespace Ejercicio1.Tarea2
+namespace Tarea2
 {
-    // Clase que representa un componente de la fábrica
+    // Clase que representa un componente que llega al sistema
     public class Componente
     {
-        public int Id { get; set; }               // Identificador único
-        public int TiempoEntrada { get; set; }    // Momento en que entra en la línea
-        public int TiempoMecanizado { get; set; } // Tiempo que tarda en procesarse
-        public int Estado { get; set; }           // Estado del componente
+        // Identificador del componente
+        public int Id { get; set; }
 
-        public int Prioridad { get; set; }        // Prioridad del componente
-        public int OrdenLlegada { get; set; }     // Orden en que llega a la fábrica
+        // Tiempo en el que entra al sistema (segundos)
+        public int TiempoEntrada { get; set; }
 
-        // Constructor del componente
+        // Tiempo que tarda en mecanizarse
+        public int TiempoMecanizado { get; set; }
+
+        // Estado del componente
+        // 0 = En espera
+        // 1 = En mecanizado
+        // 2 = Completado
+        public int Estado { get; set; }
+
+        // Constructor para crear el componente con sus valores iniciales
         public Componente(int id, int tiempoEntrada, int tiempoMecanizado)
         {
             Id = id;
             TiempoEntrada = tiempoEntrada;
             TiempoMecanizado = tiempoMecanizado;
+            Estado = 0; // Al crearse siempre empieza "en espera"
         }
     }
 
     class Program
     {
-        // Array que indica si cada estación está ocupada
-        static bool[] estacionesOcupadas = new bool[4];
+        // Array que representa las estaciones de mecanizado
+        // false = estación libre
+        // true = estación ocupada
+        static bool[] estaciones = new bool[4];
 
-        // Lock para controlar el acceso a las estaciones
-        static object lockEstaciones = new object();
-
-        // Generador de números aleatorios
-        static Random random = new Random();
-
-        // Colección para evitar IDs repetidos
-        static HashSet<int> idsUsados = new HashSet<int>();
-        static object lockIds = new object();
+        // Objeto utilizado para bloquear el acceso concurrente
+        // evita que varios hilos accedan a estaciones a la vez
+        static object bloqueo = new object();
 
         static void Main(string[] args)
         {
-            // Array para guardar los hilos de los componentes
-            Thread[] hilos = new Thread[4];
+            // Generador de números aleatorios
+            Random rnd = new Random();
 
-            // Se crean 4 componentes
-            for (int i = 0; i < 4; i++)
+            // Lista donde guardaremos los hilos creados
+            List<Thread> hilos = new List<Thread>();
+
+            // Simulación de llegada de 4 componentes
+            for (int i = 1; i <= 4; i++)
             {
-                int orden = i + 1;
+                // Creamos un nuevo componente con valores aleatorios
+                Componente componente = new Componente(
+                    rnd.Next(1, 101),      // ID aleatorio entre 1 y 100
+                    (i - 1) * 2,           // tiempo de entrada: 0,2,4,6
+                    rnd.Next(5, 16)        // tiempo de mecanizado entre 5 y 15 segundos
+                );
 
-                // Creamos el componente
-                Componente componente = CrearComponente(orden);
+                // Mostramos información inicial del componente
+                Console.WriteLine($"Componente detectado -> Orden llegada: {i}, ID: {componente.Id}, TiempoEntrada: {componente.TiempoEntrada}s, TiempoMecanizado: {componente.TiempoMecanizado}s, Estado: En espera");
 
-                // Mostramos sus datos al detectarlo
-                MostrarLlegada(componente);
+                int estacionAsignada = -1;
 
-                // Creamos un hilo para procesar el componente
-                hilos[i] = new Thread(() => ProcesarComponente(componente));
-                hilos[i].Start();
+                // Mientras no se encuentre estación libre
+                while (estacionAsignada == -1)
+                {
+                    // Intentamos elegir una estación aleatoria
+                    int intento = rnd.Next(0, 4);
 
-                // Cada componente entra cada 2 segundos
+                    // Bloqueamos acceso para evitar conflictos entre hilos
+                    lock (bloqueo)
+                    {
+                        // Si la estación está libre
+                        if (!estaciones[intento])
+                        {
+                            // La marcamos como ocupada
+                            estaciones[intento] = true;
+
+                            // Guardamos la estación asignada
+                            estacionAsignada = intento;
+                        }
+                    }
+
+                    // Si no encontramos estación libre esperamos un poco
+                    if (estacionAsignada == -1)
+                    {
+                        Thread.Sleep(200);
+                    }
+                }
+
+                int ordenLlegada = i;
+
+                // Sumamos 1 porque las estaciones van de 1 a 4 para el usuario
+                int estacion = estacionAsignada + 1;
+
+                // Creamos un hilo que ejecutará el mecanizado
+                Thread t = new Thread(() => Procesar(componente, ordenLlegada, estacion));
+
+                // Guardamos el hilo en la lista
+                hilos.Add(t);
+
+                // Iniciamos el hilo
+                t.Start();
+
+                // Los componentes llegan cada 2 segundos
                 Thread.Sleep(2000);
             }
 
             // Esperamos a que todos los hilos terminen
-            for (int i = 0; i < 4; i++)
+            foreach (Thread t in hilos)
             {
-                hilos[i].Join();
+                t.Join();
             }
 
-            Console.WriteLine("Fin de la simulación.");
+            Console.WriteLine("Fin de la simulación");
         }
 
-        // Método que crea un componente con valores aleatorios
-        static Componente CrearComponente(int orden)
+        // Método que simula el proceso de mecanizado
+        static void Procesar(Componente componente, int ordenLlegada, int estacion)
         {
-            int id;
-            int tiempoMecanizado;
-            int prioridad;
+            // Cambiamos el estado a "en mecanizado"
+            componente.Estado = 1;
 
-            // Generamos tiempo de mecanizado y prioridad
-            lock (random)
+            Console.WriteLine($"Componente ID {componente.Id} (entrada {ordenLlegada}) entra en estación {estacion}. Estado: En mecanizado");
+
+            // Simulación del tiempo de mecanizado
+            Thread.Sleep(componente.TiempoMecanizado * 1000);
+
+            // Cambiamos el estado a completado
+            componente.Estado = 2;
+
+            Console.WriteLine($"Componente ID {componente.Id} (entrada {ordenLlegada}) abandona la estación {estacion}. Estado: Completado");
+
+            // Liberamos la estación para que otro componente pueda usarla
+            lock (bloqueo)
             {
-                tiempoMecanizado = random.Next(5, 16); // entre 5 y 15 segundos
-                prioridad = random.Next(1, 4);         // prioridad 1-3
-            }
-
-            // Generamos un ID único entre 1 y 100
-            lock (lockIds)
-            {
-                do
-                {
-                    lock (random)
-                    {
-                        id = random.Next(1, 101);
-                    }
-                }
-                while (idsUsados.Contains(id)); // si existe se repite
-
-                idsUsados.Add(id);
-            }
-
-            // Creamos el objeto componente
-            Componente c = new Componente(id, (orden - 1) * 2, tiempoMecanizado);
-
-            c.Estado = 0;          // 0 = En espera
-            c.Prioridad = prioridad;
-            c.OrdenLlegada = orden;
-
-            return c;
-        }
-
-        // Muestra la información del componente al llegar
-        static void MostrarLlegada(Componente c)
-        {
-            Console.WriteLine(
-                $"Componente detectado -> ID={c.Id}, Prioridad={c.Prioridad}, OrdenLlegada={c.OrdenLlegada}, TiempoEntrada={c.TiempoEntrada}s, TiempoMecanizado={c.TiempoMecanizado}s");
-        }
-
-        // Procesa el componente dentro de la fábrica
-        static void ProcesarComponente(Componente c)
-        {
-            int estacion = -1;
-
-            // Mientras no encuentre estación libre sigue intentando
-            while (estacion == -1)
-            {
-                int intento;
-
-                // Selecciona estación aleatoria
-                lock (random)
-                {
-                    intento = random.Next(0, 4);
-                }
-
-                // Comprueba si la estación está libre
-                lock (lockEstaciones)
-                {
-                    if (!estacionesOcupadas[intento])
-                    {
-                        estacionesOcupadas[intento] = true;
-                        estacion = intento;
-                    }
-                }
-
-                // Si no hay estación libre espera un poco
-                if (estacion == -1)
-                {
-                    Thread.Sleep(200);
-                }
-            }
-
-            // Cambia el estado a mecanizado
-            c.Estado = 1;
-
-            Console.WriteLine(
-                $"Componente ID={c.Id} (Prioridad={c.Prioridad}, Llegada={c.OrdenLlegada}) entra en estación {estacion + 1} durante {c.TiempoMecanizado}s");
-
-            // Simula el mecanizado
-            Thread.Sleep(c.TiempoMecanizado * 1000);
-
-            // Cambia estado a completado
-            c.Estado = 2;
-
-            Console.WriteLine(
-                $"Componente ID={c.Id} (Prioridad={c.Prioridad}, Llegada={c.OrdenLlegada}) abandona la estación {estacion + 1}");
-
-            // Libera la estación
-            lock (lockEstaciones)
-            {
-                estacionesOcupadas[estacion] = false;
+                estaciones[estacion - 1] = false;
             }
         }
     }
