@@ -87,3 +87,10 @@ A continuación se muestra un ejemplo de ejecución del programa:
 ## Captura de ejecución
 
 ![Captura de ejecución](captura_tarea1.png)
+
+---
+
+# Diagrama/Esquema
+
+
+![Captura de ejecución](d1.1.png)
