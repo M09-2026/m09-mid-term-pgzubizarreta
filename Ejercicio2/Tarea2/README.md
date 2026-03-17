@@ -156,7 +156,6 @@ Esto permite observar claramente el recorrido de cada componente y comprobar que
 
 ## Captura de ejecución
 
-Aquí debe añadirse una captura de pantalla mostrando la ejecución del programa en consola.
 
 *(2.2.2.png)*
 

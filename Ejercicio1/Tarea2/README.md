@@ -127,7 +127,7 @@ Por lo tanto, el orden de salida dependerá de los valores aleatorios generados 
 # Captura de ejecución
 
 
-*(1.2.png)*
+![Captura de ejecución](1.2.png)
 
 ---
 

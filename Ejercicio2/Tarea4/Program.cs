@@ -18,26 +18,27 @@ namespace Ejercicio2.Tarea4
     // Clase que representa un componente
     public class Componente
     {
-        public int Id { get; set; }                    // ID único
-        public int TiempoMecanizado { get; set; }     // Tiempo de mecanizado
-        public bool RequiereInspeccion { get; set; }  // Si necesita QC
-        public EstadoComponente Estado { get; set; }  // Estado actual
-        public int OrdenLlegada { get; set; }         // Orden de llegada
-        public int Prioridad { get; set; }            // Prioridad: 1, 2 o 3
+        public int Id { get; set; }
+        public int TiempoMecanizado { get; set; }
+        public bool RequiereInspeccion { get; set; }
+        public EstadoComponente Estado { get; set; }
+        public int OrdenLlegada { get; set; }
+        public int Prioridad { get; set; }
 
-        public Componente(int id, int tiempo, bool inspeccion, int orden, int prioridad)
+        public Componente(int id, int tiempoMecanizado, bool requiereInspeccion, int ordenLlegada, int prioridad)
         {
             Id = id;
-            TiempoMecanizado = tiempo;
-            RequiereInspeccion = inspeccion;
-            OrdenLlegada = orden;
+            TiempoMecanizado = tiempoMecanizado;
+            RequiereInspeccion = requiereInspeccion;
+            OrdenLlegada = ordenLlegada;
             Prioridad = prioridad;
+            Estado = EstadoComponente.EsperaMecanizado;
         }
     }
 
     class Program
     {
-        // Buffer de componentes en espera
+        // Búfer de entrada
         static List<Componente> buffer = new List<Componente>();
 
         // Locks
@@ -45,6 +46,7 @@ namespace Ejercicio2.Tarea4
         static object lockConsola = new object();
         static object lockRandom = new object();
         static object lockIds = new object();
+        static object lockEstado = new object();
 
         // Recursos
         static SemaphoreSlim qc = new SemaphoreSlim(2, 2);
@@ -57,49 +59,48 @@ namespace Ejercicio2.Tarea4
 
         static void Main(string[] args)
         {
-            // Hilo que planifica qué componente entra a mecanizado
             Thread planificador = new Thread(PlanificarMecanizado);
             planificador.Start();
 
-            // Generamos 20 componentes
+            // Generar 20 componentes
             for (int i = 0; i < 20; i++)
             {
                 int orden = i + 1;
-                Componente c = CrearComponente(orden);
-
-                c.Estado = EstadoComponente.EsperaMecanizado;
+                Componente componente = CrearComponente(orden);
 
                 lock (lockBuffer)
                 {
-                    buffer.Add(c);
+                    buffer.Add(componente);
                 }
 
-                Log(c, c.Estado);
+                Log(componente, "Llegado al búfer");
 
-                // Llega un componente cada 2 segundos
                 Thread.Sleep(2000);
             }
 
-            generacionFinalizada = true;
+            lock (lockEstado)
+            {
+                generacionFinalizada = true;
+            }
 
             planificador.Join();
 
             Console.WriteLine("Fin de la simulación.");
         }
 
-        // Crea un componente con valores aleatorios
-        static Componente CrearComponente(int orden)
+        // Crear componente con datos aleatorios
+        static Componente CrearComponente(int ordenLlegada)
         {
             int id;
-            int tiempo;
-            bool inspeccion;
+            int tiempoMecanizado;
+            bool requiereInspeccion;
             int prioridad;
 
             lock (lockRandom)
             {
-                tiempo = random.Next(5, 16);           // 5 a 15 s
-                inspeccion = random.Next(0, 2) == 1;   // true o false
-                prioridad = random.Next(1, 4);         // 1, 2 o 3
+                tiempoMecanizado = random.Next(5, 16);
+                requiereInspeccion = random.Next(0, 2) == 1;
+                prioridad = random.Next(1, 4);
             }
 
             lock (lockIds)
@@ -116,17 +117,18 @@ namespace Ejercicio2.Tarea4
                 idsUsados.Add(id);
             }
 
-            return new Componente(id, tiempo, inspeccion, orden, prioridad);
+            return new Componente(id, tiempoMecanizado, requiereInspeccion, ordenLlegada, prioridad);
         }
 
-        // Selecciona componentes del buffer según prioridad
+        // Planificador: decide qué componente entra a mecanizado
         static void PlanificarMecanizado()
         {
             List<Thread> hilosActivos = new List<Thread>();
 
             while (true)
             {
-                Componente siguiente = null;
+                Componente? siguiente = null;
+                bool terminar = false;
 
                 lock (lockBuffer)
                 {
@@ -140,6 +142,16 @@ namespace Ejercicio2.Tarea4
                         buffer.Remove(siguiente);
                         estacionesLibres--;
                     }
+                    else
+                    {
+                        lock (lockEstado)
+                        {
+                            if (generacionFinalizada && buffer.Count == 0 && estacionesLibres == 4)
+                            {
+                                terminar = true;
+                            }
+                        }
+                    }
                 }
 
                 if (siguiente != null)
@@ -148,23 +160,12 @@ namespace Ejercicio2.Tarea4
                     hilosActivos.Add(hilo);
                     hilo.Start();
                 }
+                else if (terminar)
+                {
+                    break;
+                }
                 else
                 {
-                    bool terminar = false;
-
-                    lock (lockBuffer)
-                    {
-                        if (generacionFinalizada && buffer.Count == 0 && estacionesLibres == 4)
-                        {
-                            terminar = true;
-                        }
-                    }
-
-                    if (terminar)
-                    {
-                        break;
-                    }
-
                     Thread.Sleep(100);
                 }
             }
@@ -175,45 +176,50 @@ namespace Ejercicio2.Tarea4
             }
         }
 
-        // Procesa un componente
-        static void ProcesarComponente(Componente c)
+        // Procesar un componente
+        static void ProcesarComponente(Componente componente)
         {
-            c.Estado = EstadoComponente.EnMecanizado;
-            Log(c, c.Estado);
+            componente.Estado = EstadoComponente.EnMecanizado;
+            Log(componente, "Entra en mecanizado");
 
-            Thread.Sleep(c.TiempoMecanizado * 1000);
+            Thread.Sleep(componente.TiempoMecanizado * 1000);
 
             lock (lockBuffer)
             {
                 estacionesLibres++;
             }
 
-            if (c.RequiereInspeccion)
+            if (componente.RequiereInspeccion)
             {
-                c.Estado = EstadoComponente.EsperaInspeccion;
-                Log(c, c.Estado);
+                componente.Estado = EstadoComponente.EsperaInspeccion;
+                Log(componente, "Esperando control de calidad");
 
                 qc.Wait();
 
-                c.Estado = EstadoComponente.EnInspeccion;
-                Log(c, c.Estado);
+                componente.Estado = EstadoComponente.EnInspeccion;
+                Log(componente, "Entra en control de calidad");
 
                 Thread.Sleep(15000);
 
                 qc.Release();
             }
 
-            c.Estado = EstadoComponente.Completado;
-            Log(c, c.Estado);
+            componente.Estado = EstadoComponente.Completado;
+            Log(componente, "Completado");
         }
 
-        // Muestra información del componente
-        static void Log(Componente c, EstadoComponente estado)
+        // Mostrar información del componente
+        static void Log(Componente componente, string mensaje)
         {
             lock (lockConsola)
             {
                 Console.WriteLine(
-                    $"Componente {c.Id}. Entrada {c.OrdenLlegada}. Prioridad {c.Prioridad}. Estado: {estado}. QC={c.RequiereInspeccion}");
+                    $"Componente {componente.Id}. " +
+                    $"Entrada {componente.OrdenLlegada}. " +
+                    $"Prioridad {componente.Prioridad}. " +
+                    $"Estado: {componente.Estado}. " +
+                    $"QC={componente.RequiereInspeccion}. " +
+                    $"{mensaje}");
             }
         }
     }

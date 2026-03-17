@@ -122,7 +122,7 @@ Esto permite visualizar claramente la evolución de cada componente dentro del s
 # Captura de ejecución
 
 
-*(1.3.png)*
+![Captura de ejecución](1.3.png)
 
 ---
 

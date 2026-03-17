@@ -170,9 +170,8 @@ Estas pruebas permiten comprobar que, en esta tarea, el acceso a QC no está gar
 
 ## Captura de ejecución
 
-Aquí debe añadirse una captura de pantalla mostrando la ejecución del programa en consola.
 
-*(2.1.1.png)*
+![Captura de ejecución](2.1.1.png)
 
 ---
 

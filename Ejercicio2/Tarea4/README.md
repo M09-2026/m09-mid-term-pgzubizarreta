@@ -2,83 +2,182 @@
 
 ## Descripción
 
-En esta tarea se amplía la simulación de la fábrica introduciendo una cola de espera con prioridad para acceder a las estaciones de mecanizado.
+En esta tarea se modifica la gestión del búfer de entrada para que los componentes no entren a mecanizado solo según disponibilidad, sino siguiendo un criterio de prioridad.
 
-Cuando varios componentes están esperando para entrar en producción, no se atienden simplemente por orden de llegada, sino teniendo en cuenta su nivel de prioridad.
+Cada componente recibe al llegar una prioridad aleatoria entre 1 y 3:
 
-## Funcionamiento del programa
+- Prioridad 1: máxima prioridad
+- Prioridad 2: prioridad media
+- Prioridad 3: prioridad baja
 
-El programa genera 20 componentes que llegan a la fábrica cada 2 segundos.
+Los componentes en espera deben entrar en las estaciones de mecanizado por orden de prioridad. Si varios componentes tienen la misma prioridad, se respeta su orden de llegada. :contentReference[oaicite:3]{index=3}
 
-Cada componente tiene:
+---
 
-- un ID único
-- un tiempo de mecanizado aleatorio entre 5 y 15 segundos
-- una prioridad aleatoria entre 1 y 3
-- un orden de llegada
-- la posibilidad de requerir control de calidad
+## Objetivo del programa
 
-El sistema sigue teniendo dos fases:
+El objetivo de esta tarea es implementar una gestión del búfer basada en prioridades, simulando un entorno en el que algunos pedidos son más urgentes que otros.
 
-### Mecanizado
-- hay 4 estaciones de mecanizado
-- solo 4 componentes pueden mecanizarse a la vez
-- el acceso se gestiona mediante una cola priorizada
+Con esta solución se busca:
+
+- mantener el flujo de llegada de componentes,
+- almacenar temporalmente los componentes en un búfer,
+- seleccionar el siguiente componente a mecanizar según prioridad,
+- respetar el orden de llegada cuando hay empate de prioridad,
+- mantener también la fase de control de calidad para los componentes que lo necesiten.
+
+---
+
+## Requisitos del enunciado
+
+En esta tarea se pide lo siguiente:
+
+- al llegar al búfer de entrada, se asigna una prioridad 1, 2 o 3;
+- los componentes en espera entrarán a mecanizado por orden de prioridad;
+- si tienen la misma prioridad, se respetará el orden de llegada. :contentReference[oaicite:4]{index=4}
+
+---
+
+## Estructura del programa
+
+El programa se divide en varias partes principales.
+
+### Enumeración de estados
+
+Se utiliza una enumeración para representar los estados posibles del componente:
+
+- EsperaMecanizado
+- EnMecanizado
+- EsperaInspeccion
+- EnInspeccion
+- Completado
+
+Esto facilita el seguimiento de cada componente durante la simulación.
+
+---
+
+### Clase Componente
+
+La clase `Componente` representa cada pieza que entra en la planta.
+
+Cada componente contiene:
+
+- **Id**: identificador único aleatorio.
+- **TiempoMecanizado**: tiempo de mecanizado aleatorio entre 5 y 15 segundos.
+- **RequiereInspeccion**: indica si debe pasar control de calidad.
+- **Estado**: estado actual del componente.
+- **OrdenLlegada**: orden de entrada en la fábrica.
+- **Prioridad**: prioridad asignada al llegar al búfer.
+
+---
+
+### Búfer de entrada
+
+Se utiliza una lista compartida como búfer para almacenar los componentes que todavía no han entrado en mecanizado.
+
+Los componentes permanecen en este búfer hasta que el planificador selecciona cuál debe entrar en una estación libre.
+
+---
+
+### Planificador
+
+Se crea un hilo planificador encargado de decidir qué componente entra a mecanizado.
+
+Cada vez que hay una estación libre, el planificador selecciona del búfer el componente que cumple estas reglas:
+
+1. menor valor de prioridad;
+2. en caso de empate, menor orden de llegada.
+
+De este modo se garantiza exactamente el comportamiento pedido en el enunciado.
+
+---
+
+## Funcionamiento de la simulación
+
+El programa sigue estos pasos:
+
+1. Se inicia un hilo planificador.
+2. Se generan 20 componentes, uno cada 2 segundos.
+3. Cada componente recibe:
+   - un ID único,
+   - un tiempo de mecanizado aleatorio,
+   - un valor aleatorio que indica si requiere QC,
+   - una prioridad entre 1 y 3.
+4. El componente se añade al búfer de entrada.
+5. Cuando hay una estación libre, el planificador selecciona del búfer el componente con mayor prioridad.
+6. Si varios componentes tienen la misma prioridad, entra primero el que llegó antes.
+7. El componente pasa a `EnMecanizado` y permanece el tiempo indicado.
+8. Si necesita inspección:
+   - pasa a `EsperaInspeccion`,
+   - espera una máquina de QC libre,
+   - pasa a `EnInspeccion`,
+   - permanece 15 segundos en QC.
+9. Finalmente pasa a `Completado`.
+
+---
+
+## Sincronización utilizada
+
+La solución utiliza varios mecanismos de sincronización.
+
+### Búfer compartido
+
+El búfer se protege con `lock` para evitar accesos simultáneos incorrectos.
+
+### Control de estaciones libres
+
+Se utiliza una variable compartida para indicar cuántas estaciones de mecanizado están disponibles.
 
 ### Control de calidad
-- algunos componentes requieren inspección
-- hay 2 máquinas de QC
-- cada inspección dura 15 segundos
 
-## Regla de prioridad
+Las máquinas de QC se representan con un `SemaphoreSlim(2, 2)`, lo que permite que como máximo dos componentes estén en inspección a la vez.
 
-La entrada a mecanizado se organiza del siguiente modo:
+### Protección de recursos compartidos
 
-1. primero los componentes de prioridad 1
-2. después los de prioridad 2
-3. por último los de prioridad 3
+También se utilizan bloqueos para:
 
-Si dos componentes tienen la misma prioridad, entra antes el que tenga menor orden de llegada.
+- proteger la consola,
+- proteger el generador aleatorio,
+- evitar IDs repetidos,
+- sincronizar el estado de finalización de la generación.
 
-## Estados del componente
+---
 
-Los estados posibles del componente son:
+## Explicación del planteamiento
 
-- `EsperaMecanizado`
-- `EnMecanizado`
-- `EsperaInspeccion`
-- `EnInspeccion`
-- `Completado`
+La solución elegida se basa en separar claramente dos funciones:
 
-## Concurrencia
+- la generación de componentes,
+- y la planificación de entrada a mecanizado.
 
-El programa utiliza concurrencia de varias formas:
+Los componentes se almacenan primero en un búfer de entrada. Después, un hilo planificador revisa continuamente ese búfer y escoge el siguiente componente según prioridad y orden de llegada.
 
-- un hilo principal genera los componentes
-- un hilo planificador decide qué componente entra en mecanizado
-- cada componente que entra en producción se procesa en su propio hilo
+He escogido esta solución porque representa bien la idea de una cola priorizada de fábrica y permite controlar de forma sencilla qué componente entra a mecanizado en cada momento.
 
-Para gestionar los recursos y evitar conflictos se usan:
+Además, hace que la lógica de prioridad quede muy visible y fácil de explicar.
 
-- una lista compartida como buffer de espera
-- `lock` para proteger el acceso al buffer
-- `SemaphoreSlim` para las 2 máquinas de control de calidad
-- `lock` para proteger consola, `Random` e IDs únicos
+---
 
-## Gestión de la cola priorizada
 
-Los componentes que esperan mecanizado se almacenan en una lista compartida.
 
-El planificador selecciona siempre el siguiente componente usando este criterio:
+## Visualización del avance
 
-- menor prioridad
-- si hay empate, menor orden de llegada
+El programa muestra por consola información detallada de cada componente, incluyendo:
 
-De esta forma se garantiza que la entrada a mecanizado siga la política de prioridad establecida.
+- el identificador,
+- el orden de llegada,
+- la prioridad,
+- el estado actual,
+- si necesita control de calidad,
+- y un mensaje descriptivo del evento.
 
-## Ejecución
+Esto permite comprobar fácilmente si los componentes entran a mecanizado respetando la prioridad.
 
-Para ejecutar el programa:
+---
 
-```bash
-dotnet run
+## Captura de ejecución
+
+
+
+![Captura de ejecución](2.4.4.png)
+

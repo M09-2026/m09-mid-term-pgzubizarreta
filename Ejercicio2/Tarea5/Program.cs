@@ -19,24 +19,25 @@ namespace Ejercicio2.Tarea5
     // Clase que representa un componente
     public class Componente
     {
-        public int Id { get; set; }                      // ID único
-        public int TiempoMecanizado { get; set; }       // Tiempo de mecanizado
-        public bool RequiereInspeccion { get; set; }    // Si necesita QC
-        public EstadoComponente Estado { get; set; }    // Estado actual
-        public int OrdenLlegada { get; set; }           // Orden de llegada
-        public int Prioridad { get; set; }              // Prioridad 1, 2 o 3
+        public int Id { get; set; }
+        public int TiempoMecanizado { get; set; }
+        public bool RequiereInspeccion { get; set; }
+        public EstadoComponente Estado { get; set; }
+        public int OrdenLlegada { get; set; }
+        public int Prioridad { get; set; }
 
-        public DateTime InstanteLlegadaBuffer { get; set; }   // Cuándo entra al buffer
-        public DateTime InstanteInicioMecanizado { get; set; } // Cuándo empieza mecanizado
-        public double TiempoEsperaBuffer { get; set; }         // Tiempo total de espera
+        public DateTime InstanteLlegadaBuffer { get; set; }
+        public DateTime InstanteInicioMecanizado { get; set; }
+        public double TiempoEsperaBuffer { get; set; }
 
-        public Componente(int id, int tiempo, bool inspeccion, int orden, int prioridad)
+        public Componente(int id, int tiempoMecanizado, bool requiereInspeccion, int ordenLlegada, int prioridad)
         {
             Id = id;
-            TiempoMecanizado = tiempo;
-            RequiereInspeccion = inspeccion;
-            OrdenLlegada = orden;
+            TiempoMecanizado = tiempoMecanizado;
+            RequiereInspeccion = requiereInspeccion;
+            OrdenLlegada = ordenLlegada;
             Prioridad = prioridad;
+            Estado = EstadoComponente.EsperaMecanizado;
             InstanteLlegadaBuffer = DateTime.Now;
         }
     }
@@ -56,6 +57,7 @@ namespace Ejercicio2.Tarea5
         static object lockRandom = new object();
         static object lockIds = new object();
         static object lockQcUso = new object();
+        static object lockEstado = new object();
 
         // Recursos
         static SemaphoreSlim qc = new SemaphoreSlim(2, 2);
@@ -77,26 +79,26 @@ namespace Ejercicio2.Tarea5
             Thread planificador = new Thread(PlanificarMecanizado);
             planificador.Start();
 
-            // Generamos 20 componentes
+            // Generar 20 componentes
             for (int i = 0; i < 20; i++)
             {
                 int orden = i + 1;
-                Componente c = CrearComponente(orden);
-
-                c.Estado = EstadoComponente.EsperaMecanizado;
+                Componente componente = CrearComponente(orden);
 
                 lock (lockBuffer)
                 {
-                    buffer.Add(c);
+                    buffer.Add(componente);
                 }
 
-                Log(c, c.Estado);
+                Log(componente, "Llegado al búfer");
 
-                // Llega un componente cada 2 segundos
                 Thread.Sleep(2000);
             }
 
-            generacionFinalizada = true;
+            lock (lockEstado)
+            {
+                generacionFinalizada = true;
+            }
 
             planificador.Join();
 
@@ -105,19 +107,19 @@ namespace Ejercicio2.Tarea5
             MostrarInformeFinal();
         }
 
-        // Crea un componente con datos aleatorios
-        static Componente CrearComponente(int orden)
+        // Crear componente con datos aleatorios
+        static Componente CrearComponente(int ordenLlegada)
         {
             int id;
-            int tiempo;
-            bool inspeccion;
+            int tiempoMecanizado;
+            bool requiereInspeccion;
             int prioridad;
 
             lock (lockRandom)
             {
-                tiempo = random.Next(5, 16);           // 5 a 15 s
-                inspeccion = random.Next(0, 2) == 1;   // true o false
-                prioridad = random.Next(1, 4);         // 1, 2 o 3
+                tiempoMecanizado = random.Next(5, 16);
+                requiereInspeccion = random.Next(0, 2) == 1;
+                prioridad = random.Next(1, 4);
             }
 
             lock (lockIds)
@@ -134,17 +136,18 @@ namespace Ejercicio2.Tarea5
                 idsUsados.Add(id);
             }
 
-            return new Componente(id, tiempo, inspeccion, orden, prioridad);
+            return new Componente(id, tiempoMecanizado, requiereInspeccion, ordenLlegada, prioridad);
         }
 
-        // Planifica la entrada a mecanizado según prioridad
+        // Planificador de entrada a mecanizado
         static void PlanificarMecanizado()
         {
             List<Thread> hilosActivos = new List<Thread>();
 
             while (true)
             {
-                Componente siguiente = null;
+                Componente? siguiente = null;
+                bool terminar = false;
 
                 lock (lockBuffer)
                 {
@@ -158,6 +161,16 @@ namespace Ejercicio2.Tarea5
                         buffer.Remove(siguiente);
                         estacionesLibres--;
                     }
+                    else
+                    {
+                        lock (lockEstado)
+                        {
+                            if (generacionFinalizada && buffer.Count == 0 && estacionesLibres == 4)
+                            {
+                                terminar = true;
+                            }
+                        }
+                    }
                 }
 
                 if (siguiente != null)
@@ -166,23 +179,12 @@ namespace Ejercicio2.Tarea5
                     hilosActivos.Add(hilo);
                     hilo.Start();
                 }
+                else if (terminar)
+                {
+                    break;
+                }
                 else
                 {
-                    bool terminar = false;
-
-                    lock (lockBuffer)
-                    {
-                        if (generacionFinalizada && buffer.Count == 0 && estacionesLibres == 4)
-                        {
-                            terminar = true;
-                        }
-                    }
-
-                    if (terminar)
-                    {
-                        break;
-                    }
-
                     Thread.Sleep(100);
                 }
             }
@@ -193,18 +195,19 @@ namespace Ejercicio2.Tarea5
             }
         }
 
-        // Procesa un componente
-        static void ProcesarComponente(Componente c)
+        // Procesar un componente
+        static void ProcesarComponente(Componente componente)
         {
-            // Mide espera en buffer
-            c.InstanteInicioMecanizado = DateTime.Now;
-            c.TiempoEsperaBuffer = (c.InstanteInicioMecanizado - c.InstanteLlegadaBuffer).TotalSeconds;
+            // Tiempo de espera en buffer
+            componente.InstanteInicioMecanizado = DateTime.Now;
+            componente.TiempoEsperaBuffer =
+                (componente.InstanteInicioMecanizado - componente.InstanteLlegadaBuffer).TotalSeconds;
 
             // Mecanizado
-            c.Estado = EstadoComponente.EnMecanizado;
-            Log(c, c.Estado);
+            componente.Estado = EstadoComponente.EnMecanizado;
+            Log(componente, "Entra en mecanizado");
 
-            Thread.Sleep(c.TiempoMecanizado * 1000);
+            Thread.Sleep(componente.TiempoMecanizado * 1000);
 
             lock (lockBuffer)
             {
@@ -212,15 +215,15 @@ namespace Ejercicio2.Tarea5
             }
 
             // Control de calidad
-            if (c.RequiereInspeccion)
+            if (componente.RequiereInspeccion)
             {
-                c.Estado = EstadoComponente.EsperaInspeccion;
-                Log(c, c.Estado);
+                componente.Estado = EstadoComponente.EsperaInspeccion;
+                Log(componente, "Esperando control de calidad");
 
                 qc.Wait();
 
-                c.Estado = EstadoComponente.EnInspeccion;
-                Log(c, c.Estado);
+                componente.Estado = EstadoComponente.EnInspeccion;
+                Log(componente, "Entra en control de calidad");
 
                 Stopwatch swQc = Stopwatch.StartNew();
 
@@ -236,68 +239,72 @@ namespace Ejercicio2.Tarea5
                 qc.Release();
             }
 
-            // Finaliza
-            c.Estado = EstadoComponente.Completado;
-            Log(c, c.Estado);
+            componente.Estado = EstadoComponente.Completado;
+            Log(componente, "Completado");
 
             lock (lockCompletados)
             {
-                completados.Add(c);
+                completados.Add(componente);
             }
         }
 
-        // Muestra el estado del componente
-        static void Log(Componente c, EstadoComponente estado)
+        // Log por consola
+        static void Log(Componente componente, string mensaje)
         {
             lock (lockConsola)
             {
                 Console.WriteLine(
-                    $"Componente {c.Id}. Entrada {c.OrdenLlegada}. Prioridad {c.Prioridad}. Estado: {estado}. QC={c.RequiereInspeccion}");
+                    $"Componente {componente.Id}. " +
+                    $"Entrada {componente.OrdenLlegada}. " +
+                    $"Prioridad {componente.Prioridad}. " +
+                    $"Estado: {componente.Estado}. " +
+                    $"QC={componente.RequiereInspeccion}. " +
+                    $"{mensaje}");
             }
         }
 
-        // Muestra el informe final del día
+        // Informe final
         static void MostrarInformeFinal()
         {
             Console.WriteLine();
-            Console.WriteLine("----- FIN DEL DÍA -----");
-            Console.WriteLine("Componentes producidos por prioridad:");
+            Console.WriteLine("--- FIN DEL DÍA ---");
+            Console.WriteLine("Componentes producidos:");
 
-            int prioridad1 = completados.Count(c => c.Prioridad == 1);
-            int prioridad2 = completados.Count(c => c.Prioridad == 2);
-            int prioridad3 = completados.Count(c => c.Prioridad == 3);
+            int flash = completados.Count(c => c.Prioridad == 1);
+            int estandar = completados.Count(c => c.Prioridad == 2);
+            int almacen = completados.Count(c => c.Prioridad == 3);
 
-            Console.WriteLine($"Prioridad 1: {prioridad1}");
-            Console.WriteLine($"Prioridad 2: {prioridad2}");
-            Console.WriteLine($"Prioridad 3: {prioridad3}");
+            Console.WriteLine($"- Flash: {flash}");
+            Console.WriteLine($"- Estandar: {estandar}");
+            Console.WriteLine($"- Almacen: {almacen}");
 
             Console.WriteLine();
-            Console.WriteLine("Tiempo medio de espera en buffer por prioridad:");
+            Console.WriteLine("Tiempo promedio de espera:");
 
-            double media1 = completados
+            double mediaFlash = completados
                 .Where(c => c.Prioridad == 1)
                 .Select(c => c.TiempoEsperaBuffer)
                 .DefaultIfEmpty(0)
                 .Average();
 
-            double media2 = completados
+            double mediaEstandar = completados
                 .Where(c => c.Prioridad == 2)
                 .Select(c => c.TiempoEsperaBuffer)
                 .DefaultIfEmpty(0)
                 .Average();
 
-            double media3 = completados
+            double mediaAlmacen = completados
                 .Where(c => c.Prioridad == 3)
                 .Select(c => c.TiempoEsperaBuffer)
                 .DefaultIfEmpty(0)
                 .Average();
 
-            Console.WriteLine($"Prioridad 1: {media1:F2} segundos");
-            Console.WriteLine($"Prioridad 2: {media2:F2} segundos");
-            Console.WriteLine($"Prioridad 3: {media3:F2} segundos");
+            Console.WriteLine($"- Flash: {mediaFlash:F2}s");
+            Console.WriteLine($"- Estandar: {mediaEstandar:F2}s");
+            Console.WriteLine($"- Almacen: {mediaAlmacen:F2}s");
 
             Console.WriteLine();
-            Console.WriteLine("Uso medio de las máquinas de control de calidad:");
+            Console.WriteLine("Uso promedio de máquinas de control de calidad:");
 
             double tiempoTotal = relojGlobal.Elapsed.TotalSeconds;
             double usoQc = 0;

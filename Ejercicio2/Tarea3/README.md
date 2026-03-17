@@ -186,5 +186,5 @@ Esto permite seguir el recorrido completo de cada componente y detectar fácilme
 ## Captura de ejecución
 
 
-*(2.3.3.png)*
+![Captura de ejecución](2.3.3.png)
 
