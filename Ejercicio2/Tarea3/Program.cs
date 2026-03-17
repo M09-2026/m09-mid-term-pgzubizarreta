@@ -17,18 +17,19 @@ namespace Ejercicio2.Tarea3
     // Clase que representa un componente
     public class Componente
     {
-        public int Id { get; set; }                    // ID del componente
-        public int TiempoMecanizado { get; set; }     // Tiempo de mecanizado
-        public bool RequiereInspeccion { get; set; }  // Indica si pasa por QC
-        public EstadoComponente Estado { get; set; }  // Estado actual
-        public int OrdenLlegada { get; set; }         // Orden de llegada
+        public int Id { get; set; }
+        public int TiempoMecanizado { get; set; }
+        public bool RequiereInspeccion { get; set; }
+        public EstadoComponente Estado { get; set; }
+        public int OrdenLlegada { get; set; }
 
-        public Componente(int id, int tiempo, bool inspeccion, int orden)
+        public Componente(int id, int tiempoMecanizado, bool requiereInspeccion, int ordenLlegada)
         {
             Id = id;
-            TiempoMecanizado = tiempo;
-            RequiereInspeccion = inspeccion;
-            OrdenLlegada = orden;
+            TiempoMecanizado = tiempoMecanizado;
+            RequiereInspeccion = requiereInspeccion;
+            OrdenLlegada = ordenLlegada;
+            Estado = EstadoComponente.EsperaMecanizado;
         }
     }
 
@@ -51,24 +52,23 @@ namespace Ejercicio2.Tarea3
         {
             Thread[] hilos = new Thread[20];
 
-            // Se generan 20 componentes
+            // Generamos 20 componentes
             for (int i = 0; i < 20; i++)
             {
                 int orden = i + 1;
-                Componente c = CrearComponente(orden);
+                Componente componente = CrearComponente(orden);
 
-                // Al llegar, entra en espera de mecanizado
-                c.Estado = EstadoComponente.EsperaMecanizado;
-                Log(c, c.Estado);
+                // Mostrar llegada al sistema
+                Log(componente, "Llegado al sistema");
 
-                hilos[i] = new Thread(() => ProcesarComponente(c));
+                hilos[i] = new Thread(() => ProcesarComponente(componente));
                 hilos[i].Start();
 
                 // Llega un componente cada 2 segundos
                 Thread.Sleep(2000);
             }
 
-            // Espera a que terminen todos los hilos
+            // Esperar a que todos terminen
             for (int i = 0; i < 20; i++)
             {
                 hilos[i].Join();
@@ -77,20 +77,20 @@ namespace Ejercicio2.Tarea3
             Console.WriteLine("Fin de la simulación.");
         }
 
-        // Crea un componente con valores aleatorios
-        static Componente CrearComponente(int orden)
+        // Crear componente con valores aleatorios
+        static Componente CrearComponente(int ordenLlegada)
         {
             int id;
-            int tiempo;
-            bool inspeccion;
+            int tiempoMecanizado;
+            bool requiereInspeccion;
 
             lock (lockRandom)
             {
-                tiempo = random.Next(5, 16);          // 5 a 15 segundos
-                inspeccion = random.Next(0, 2) == 1;  // true o false
+                tiempoMecanizado = random.Next(5, 16);       // 5 a 15 segundos
+                requiereInspeccion = random.Next(0, 2) == 1; // true o false
             }
 
-            // Genera un ID único
+            // Generar ID único entre 1 y 100
             lock (lockIds)
             {
                 do
@@ -105,56 +105,69 @@ namespace Ejercicio2.Tarea3
                 idsUsados.Add(id);
             }
 
-            return new Componente(id, tiempo, inspeccion, orden);
+            return new Componente(id, tiempoMecanizado, requiereInspeccion, ordenLlegada);
         }
 
-        // Procesa el componente
-        static void ProcesarComponente(Componente c)
+        // Procesar el recorrido completo del componente
+        static void ProcesarComponente(Componente componente)
         {
-            // Mientras no consiga estación, sigue en espera
+            bool yaHaMostradoEsperaMecanizado = false;
+
+            // Esperar estación libre
             while (!estaciones.Wait(0))
             {
-                c.Estado = EstadoComponente.EsperaMecanizado;
+                if (!yaHaMostradoEsperaMecanizado)
+                {
+                    componente.Estado = EstadoComponente.EsperaMecanizado;
+                    Log(componente, "Esperando estación de mecanizado");
+                    yaHaMostradoEsperaMecanizado = true;
+                }
+
                 Thread.Sleep(250);
             }
 
             // Entra en mecanizado
-            c.Estado = EstadoComponente.EnMecanizado;
-            Log(c, c.Estado);
+            componente.Estado = EstadoComponente.EnMecanizado;
+            Log(componente, "Entra en mecanizado");
 
-            Thread.Sleep(c.TiempoMecanizado * 1000);
+            Thread.Sleep(componente.TiempoMecanizado * 1000);
 
-            // Libera estación de mecanizado
+            // Libera estación
             estaciones.Release();
 
             // Si necesita inspección, pasa por QC
-            if (c.RequiereInspeccion)
+            if (componente.RequiereInspeccion)
             {
-                c.Estado = EstadoComponente.EsperaInspeccion;
-                Log(c, c.Estado);
+                componente.Estado = EstadoComponente.EsperaInspeccion;
+                Log(componente, "Esperando control de calidad");
 
                 qc.Wait();
 
-                c.Estado = EstadoComponente.EnInspeccion;
-                Log(c, c.Estado);
+                componente.Estado = EstadoComponente.EnInspeccion;
+                Log(componente, "Entra en control de calidad");
 
                 Thread.Sleep(15000);
 
                 qc.Release();
             }
 
-            // Componente completado
-            c.Estado = EstadoComponente.Completado;
-            Log(c, c.Estado);
+            // Finaliza
+            componente.Estado = EstadoComponente.Completado;
+            Log(componente, "Completado");
         }
 
-        // Muestra el estado del componente
-        static void Log(Componente c, EstadoComponente estado)
+        // Método de log
+        static void Log(Componente componente, string mensaje)
         {
             lock (lockConsola)
             {
                 Console.WriteLine(
-                    $"Componente {c.Id}. Entrada {c.OrdenLlegada}. Estado: {estado}. QC={c.RequiereInspeccion}");
+                    $"Componente {componente.Id}. " +
+                    $"Entrada {componente.OrdenLlegada}. " +
+                    $"Estado: {componente.Estado}. " +
+                    $"TiempoMecanizado: {componente.TiempoMecanizado}s. " +
+                    $"QC={componente.RequiereInspeccion}. " +
+                    $"{mensaje}");
             }
         }
     }

@@ -13,21 +13,22 @@ namespace Ejercicio2.Tarea2
         Completado
     }
 
-    // Clase componente
+    // Clase que representa un componente de la línea
     public class Componente
     {
-        public int Id { get; set; }                    // ID del componente
-        public int TiempoMecanizado { get; set; }     // Tiempo de mecanizado
-        public bool RequiereInspeccion { get; set; }  // Indica si pasa por QC
-        public EstadoComponente Estado { get; set; }  // Estado actual
-        public int OrdenLlegada { get; set; }         // Orden de llegada
+        public int Id { get; set; }
+        public int TiempoMecanizado { get; set; }
+        public bool RequiereInspeccion { get; set; }
+        public EstadoComponente Estado { get; set; }
+        public int OrdenLlegada { get; set; }
 
-        public Componente(int id, int tiempo, bool inspeccion, int orden)
+        public Componente(int id, int tiempoMecanizado, bool requiereInspeccion, int ordenLlegada)
         {
             Id = id;
-            TiempoMecanizado = tiempo;
-            RequiereInspeccion = inspeccion;
-            OrdenLlegada = orden;
+            TiempoMecanizado = tiempoMecanizado;
+            RequiereInspeccion = requiereInspeccion;
+            OrdenLlegada = ordenLlegada;
+            Estado = EstadoComponente.EsperaMecanizado;
         }
     }
 
@@ -36,14 +37,14 @@ namespace Ejercicio2.Tarea2
         // 4 estaciones de mecanizado
         static SemaphoreSlim estaciones = new SemaphoreSlim(4, 4);
 
-        // 2 máquinas de control de calidad
+        // 2 máquinas de QC (se mantienen porque forman parte de la planta)
         static SemaphoreSlim qc = new SemaphoreSlim(2, 2);
 
-        // Control del orden de entrada a QC
+        // Control del orden secuencial estricto en QC
         static object lockOrdenQc = new object();
         static int siguienteOrdenQc = 1;
 
-        // Otros locks compartidos
+        // Locks auxiliares
         static object lockRandom = new object();
         static object lockConsola = new object();
 
@@ -56,11 +57,11 @@ namespace Ejercicio2.Tarea2
             for (int i = 0; i < 4; i++)
             {
                 int orden = i + 1;
-                Componente c = CrearComponente(orden);
+                Componente componente = CrearComponente(orden);
 
-                Log(c, EstadoComponente.EsperaMecanizado);
+                Log(componente, EstadoComponente.EsperaMecanizado);
 
-                hilos[i] = new Thread(() => ProcesarComponente(c));
+                hilos[i] = new Thread(() => ProcesarComponente(componente));
                 hilos[i].Start();
 
                 // Llega un componente cada 2 segundos
@@ -85,76 +86,84 @@ namespace Ejercicio2.Tarea2
             lock (lockRandom)
             {
                 id = random.Next(1, 101);
-                tiempo = random.Next(5, 16);   // entre 5 y 15
-                inspeccion = true;             // todos pasan por QC para ver bien el orden
+                tiempo = random.Next(5, 16);
+                inspeccion = true; // todos pasan por QC para comprobar el orden
             }
 
             return new Componente(id, tiempo, inspeccion, orden);
         }
 
         // Procesa el ciclo completo del componente
-        static void ProcesarComponente(Componente c)
+        static void ProcesarComponente(Componente componente)
         {
-            // Espera una estación de mecanizado
+            // Espera estación de mecanizado
             estaciones.Wait();
 
-            c.Estado = EstadoComponente.EnMecanizado;
-            Log(c, c.Estado);
+            componente.Estado = EstadoComponente.EnMecanizado;
+            Log(componente, componente.Estado);
 
-            Thread.Sleep(c.TiempoMecanizado * 1000);
+            Thread.Sleep(componente.TiempoMecanizado * 1000);
 
             estaciones.Release();
 
-            // Pasa a espera de inspección
-            if (c.RequiereInspeccion)
+            // Todos pasan por QC en esta tarea para comprobar el orden secuencial
+            if (componente.RequiereInspeccion)
             {
-                c.Estado = EstadoComponente.EsperaInspeccion;
-                Log(c, c.Estado);
+                componente.Estado = EstadoComponente.EsperaInspeccion;
+                Log(componente, componente.Estado);
 
-                // Espera a que sea su turno según el orden de llegada
-                while (true)
+                // Espera hasta que sea exactamente su turno
+                bool miTurno = false;
+                while (!miTurno)
                 {
-                    bool puedeEntrar = false;
-
                     lock (lockOrdenQc)
                     {
-                        if (c.OrdenLlegada == siguienteOrdenQc)
+                        if (componente.OrdenLlegada == siguienteOrdenQc)
                         {
-                            siguienteOrdenQc++;
-                            puedeEntrar = true;
+                            miTurno = true;
                         }
                     }
 
-                    if (puedeEntrar)
+                    if (!miTurno)
                     {
-                        break;
+                        Thread.Sleep(100);
                     }
-
-                    Thread.Sleep(100);
                 }
 
-                // Espera una máquina QC libre
+                // Entra en una máquina de QC
                 qc.Wait();
 
-                c.Estado = EstadoComponente.EnInspeccion;
-                Log(c, c.Estado);
+                componente.Estado = EstadoComponente.EnInspeccion;
+                Log(componente, componente.Estado);
 
+                // Inspección fija de 15 segundos
                 Thread.Sleep(15000);
 
                 qc.Release();
+
+                // Solo al terminar completamente la inspección
+                // se permite avanzar al siguiente componente
+                lock (lockOrdenQc)
+                {
+                    siguienteOrdenQc++;
+                }
             }
 
-            c.Estado = EstadoComponente.Completado;
-            Log(c, c.Estado);
+            componente.Estado = EstadoComponente.Completado;
+            Log(componente, componente.Estado);
         }
 
-        // Muestra el estado del componente
-        static void Log(Componente c, EstadoComponente estado)
+        // Muestra por consola el estado del componente
+        static void Log(Componente componente, EstadoComponente estado)
         {
             lock (lockConsola)
             {
                 Console.WriteLine(
-                    $"Componente {c.Id}. Entrada {c.OrdenLlegada}. Estado: {estado}. QC={c.RequiereInspeccion}");
+                    $"Componente {componente.Id}. " +
+                    $"Entrada {componente.OrdenLlegada}. " +
+                    $"Estado: {estado}. " +
+                    $"TiempoMecanizado: {componente.TiempoMecanizado}s. " +
+                    $"QC={componente.RequiereInspeccion}");
             }
         }
     }
