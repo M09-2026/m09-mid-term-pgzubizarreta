@@ -181,3 +181,10 @@ Esto permite comprobar fácilmente si los componentes entran a mecanizado respet
 
 ![Captura de ejecución](2.4.4.png)
 
+---
+
+# Diagrama/Esquema
+
+
+![Captura de ejecución](d2.4.png)
+

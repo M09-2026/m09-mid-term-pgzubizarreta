@@ -127,11 +127,7 @@ Esto permite visualizar claramente la evolución de cada componente dentro del s
 ---
 
 
+# Diagrama/Esquema
 
-# Conclusión
 
-Esta simulación permite observar cómo funciona una línea de producción con múltiples estaciones de mecanizado utilizando programación concurrente.
-
-Gracias al uso de hilos y mecanismos de sincronización, el sistema puede procesar varios componentes al mismo tiempo sin conflictos entre estaciones.
-
-El sistema de registro de eventos facilita el análisis del comportamiento del sistema y permite comprender mejor el flujo de los componentes dentro de la línea de producción.
+![Captura de ejecución](d1.3.png)

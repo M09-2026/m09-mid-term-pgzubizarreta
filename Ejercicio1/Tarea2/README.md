@@ -132,10 +132,8 @@ Por lo tanto, el orden de salida dependerá de los valores aleatorios generados 
 ---
 
 
-# Conclusión
+# Diagrama/Esquema
 
-Este programa simula de forma sencilla el funcionamiento de una línea de producción con múltiples estaciones de mecanizado.
 
-Gracias al uso de hilos, es posible representar el procesamiento simultáneo de varios componentes, mientras que el uso de mecanismos de sincronización garantiza que las estaciones se utilicen correctamente sin conflictos entre procesos.
+![Captura de ejecución](screen.png)
 
-La simulación permite observar cómo cada componente entra en la línea, se mecaniza durante un tiempo determinado y finalmente abandona la estación una vez completado el proceso.

@@ -226,3 +226,10 @@ Esto hace que el programa sea más fácil de entender, más fácil de mantener y
 
 ![Captura de ejecución](2.5.5.png)
 
+---
+
+# Diagrama/Esquema
+
+
+![Captura de ejecución](d2.5.png)
+

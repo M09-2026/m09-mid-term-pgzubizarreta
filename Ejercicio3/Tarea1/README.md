@@ -238,3 +238,10 @@ Esto serviría para identificar los cuellos de botella principales del sistema.
 ---
 
 ![Captura de ejecución](3.1.1.png)
+
+---
+
+# Diagrama/Esquema
+
+
+![Captura de ejecución](d3.1.png)

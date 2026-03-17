@@ -157,7 +157,14 @@ Esto permite observar claramente el recorrido de cada componente y comprobar que
 ## Captura de ejecución
 
 
-*(2.2.2.png)*
+![Captura de ejecución](2.2.2.png)
+
+---
+
+# Diagrama/Esquema
+
+
+![Captura de ejecución](d2.2.png)
 
 
 

@@ -175,12 +175,7 @@ Estas pruebas permiten comprobar que, en esta tarea, el acceso a QC no está gar
 
 ---
 
+# Diagrama/Esquema
 
 
-## Conclusión
-
-Esta tarea amplía la simulación inicial incorporando una fase de control de calidad y recursos compartidos adicionales.
-
-Gracias al uso de hilos y semáforos, el programa controla correctamente tanto las estaciones de mecanizado como las máquinas de inspección, permitiendo una simulación concurrente más completa y más cercana a un entorno real de producción.
-
-La solución representa correctamente el comportamiento general del sistema y deja preparada una buena base para las siguientes tareas del ejercicio.
+![Captura de ejecución](d2.1.png)
